@@ -1,4 +1,4 @@
-name: Convertir Web a APK Directo
+name: Reparar Pantalla en Blanco y Crear APK
 
 on:
   push:
@@ -17,35 +17,44 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: 20
+        cache: 'npm'
 
-    - name: Instalar herramientas de empaquetado
+    - name: Instalar dependencias y Compilar Web (Vite)
       run: |
-        npm install -g cordova
-        npm install -g bubblewrap
+        npm install
+        npm run build --if-present
 
-    - name: Crear estructura de la App
+    - name: Configurar carpetas para Cordova
       run: |
-        mkdir -p www
-        cp index.html www/ 2>/dev/null || true
-        cp -r * www/ 2>/dev/null || true
+        # Detectar dónde dejó Vite los archivos (dist o build) y prepararlos
+        mkdir -p www_assets
+        if [ -d "dist" ]; then
+          cp -r dist/* www_assets/
+        elif [ -d "build" ]; then
+          cp -r build/* www_assets/
+        else
+          cp -r * www_assets/ 2>/dev/null || true
+        fi
 
-    - name: Configurar Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
+    - name: Instalar Cordova
+      run: npm install -g cordova
 
     - name: Configurar e instalar Cordova Android
       run: |
         cordova create android-app com.gchiluisar.realcleaner "Real Cleaner"
         cd android-app
         rm -rf www
-        cp -r ../www .
+        # Copiar los archivos compilados reales a la carpeta que lee el APK
+        cp -r ../www_assets www
         cordova platform add android
+        
+        # Ajuste de seguridad indispensable para Android 13+
+        echo '<preference name="AndroidInsecureFileModeEnabled" value="true" />' >> config.xml
+        
         cordova build android --device
 
-    - name: Subir el APK Generado
+    - name: Subir el APK Reparado
       uses: actions/upload-artifact@v4
       with:
-        name: Mi-Aplicacion-RAM
+        name: Mi-Aplicacion-RAM-Reparada
         path: android-app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
