@@ -1,4 +1,4 @@
-name: Reparar Pantalla en Blanco y Crear APK
+name: APK Definitivo con Capacitor
 
 on:
   push:
@@ -19,42 +19,45 @@ jobs:
         node-version: 20
         cache: 'npm'
 
-    - name: Instalar dependencias y Compilar Web (Vite)
+    - name: Instalar dependencias y Compilar Web
       run: |
         npm install
         npm run build --if-present
 
-    - name: Configurar carpetas para Cordova
+    - name: Crear carpeta de respaldo si Vite no la creó
       run: |
-        # Detectar dónde dejó Vite los archivos (dist o build) y prepararlos
-        mkdir -p www_assets
-        if [ -d "dist" ]; then
-          cp -r dist/* www_assets/
-        elif [ -d "build" ]; then
-          cp -r build/* www_assets/
-        else
-          cp -r * www_assets/ 2>/dev/null || true
+        # Si Vite no generó 'dist', creamos la carpeta y metemos los archivos raíz
+        if [ ! -d "dist" ]; then
+          mkdir -p dist
+          cp index.html dist/ 2>/dev/null || true
+          cp -r assets dist/ 2>/dev/null || true
+          cp -r src dist/ 2>/dev/null || true
+          cp * dist/ 2>/dev/null || true
         fi
 
-    - name: Instalar Cordova
-      run: npm install -g cordova
+    - name: Configurar Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
 
-    - name: Configurar e instalar Cordova Android
+    - name: Inicializar Capacitor y Crear entorno Android
       run: |
-        cordova create android-app com.gchiluisar.realcleaner "Real Cleaner"
-        cd android-app
-        rm -rf www
-        # Copiar los archivos compilados reales a la carpeta que lee el APK
-        cp -r ../www_assets www
-        cordova platform add android
-        
-        # Ajuste de seguridad indispensable para Android 13+
-        echo '<preference name="AndroidInsecureFileModeEnabled" value="true" />' >> config.xml
-        
-        cordova build android --device
+        npm install @capacitor/core @capacitor/cli @capacitor/android
+        npx cap init "Real Cleaner" "com.gchiluisar.realcleaner" --web-dir=dist
+        npx cap add android
 
-    - name: Subir el APK Reparado
+    - name: Sincronizar archivos web con Android
+      run: npx cap sync android
+
+    - name: Compilar APK Nativo
+      run: |
+        cd android
+        chmod +x ./gradlew
+        ./gradlew assembleDebug
+
+    - name: Subir el APK Listo para Usar
       uses: actions/upload-artifact@v4
       with:
-        name: Mi-Aplicacion-RAM-Reparada
-        path: android-app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+        name: Real-Cleaner-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
