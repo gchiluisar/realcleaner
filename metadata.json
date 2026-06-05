@@ -1,0 +1,6 @@
+{
+  "name": "Android RAM Cleaner Simulator",
+  "description": "Simulador interactivo de administración de RAM en Android y generador de código Kotlin para servicios de accesibilidad de limpieza de procesos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
