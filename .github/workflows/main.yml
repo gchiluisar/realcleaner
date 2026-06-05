@@ -1,4 +1,4 @@
-name: Convertir App Web a APK
+name: Convertir Web a APK Directo
 
 on:
   push:
@@ -10,26 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Descargar repositorio
+    - name: Descargar el proyecto
       uses: actions/checkout@v4
 
     - name: Configurar Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 18
-        cache: 'npm'
+        node-version: 20
 
-    - name: Instalar dependencias y Construir Web
+    - name: Instalar herramientas de empaquetado
       run: |
-        npm install
-        npm run build --if-present
+        npm install -g cordova
+        npm install -g bubblewrap
 
-    - name: Instalar convertidor (Capacitor)
+    - name: Crear estructura de la App
       run: |
-        npm install @capacitor/core @capacitor/cli
-        npx cap init "Real Cleaner" "com.gchiluisar.realcleaner" --web-dir=dist --web-dir=build --web-dir=.
-        npm install @capacitor/android
-        npx cap add android
+        mkdir -p www
+        cp index.html www/ 2>/dev/null || true
+        cp -r * www/ 2>/dev/null || true
 
     - name: Configurar Java
       uses: actions/setup-java@v4
@@ -37,15 +35,17 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
 
-    - name: Sincronizar y Compilar APK
+    - name: Configurar e instalar Cordova Android
       run: |
-        npx cap sync android
-        cd android
-        chmod +x ./gradlew
-        ./gradlew assembleDebug
+        cordova create android-app com.gchiluisar.realcleaner "Real Cleaner"
+        cd android-app
+        rm -rf www
+        cp -r ../www .
+        cordova platform add android
+        cordova build android --device
 
-    - name: Subir tu APK Listo
+    - name: Subir el APK Generado
       uses: actions/upload-artifact@v4
       with:
         name: Mi-Aplicacion-RAM
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        path: android-app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
