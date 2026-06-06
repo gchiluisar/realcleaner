@@ -1,4 +1,4 @@
-name: APK Directo Sin Errores de Compilacion
+name: Crear APK Web Directo Gratis
 
 on:
   push:
@@ -10,66 +10,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Descargar el proyecto
+    - name: Descargar repositorio
       uses: actions/checkout@v4
 
-    - name: Configurar Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-
-    - name: Preparar archivos para el APK (Ignorar errores de build)
-      run: |
-        # Creamos la carpeta final que leerá el instalador
-        mkdir -p www
-        
-        # Intentamos compilar de forma suave por si acaso, pero si falla no detendrá el proceso
-        npm install || true
-        npm run build --if-present || true
-        
-        # Si se creó la carpeta 'dist' o 'build' la usamos, si no, copiamos todo el código fuente directo
-        if [ -d "dist" ]; then
-          cp -r dist/* www/
-        elif [ -d "build" ]; then
-          cp -r build/* www/
-        else
-          cp -r * www/ 2>/dev/null || true
-        fi
-        
-        # Nos aseguramos de que el index.html principal esté en la raíz de la app
-        if [ ! -f "www/index.html" ] && [ -f "index.html" ]; then
-          cp index.html www/
-        fi
-
-    - name: Instalar Cordova (Compilador Directo)
-      run: npm install -g cordova
-
-    - name: Configurar proyecto Android
-      run: |
-        cordova create android-app com.gchiluisar.realcleaner "Real Cleaner"
-        cd android-app
-        rm -rf www
-        cp -r ../www .
-        cordova platform add android
-        
-        # Parche de seguridad crítico para evitar que la pantalla se quede en blanco en Android 13
-        echo '<preference name="AndroidInsecureFileModeEnabled" value="true" />' >> config.xml
-        echo '<preference name="WebViewAnimateLayoutChanges" value="false" />' >> config.xml
-
-    - name: Configurar Java
+    - name: Configurar Java y Android SDK
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
 
-    - name: Forzar Compilación del APK
+    - name: Instalar Herramienta de Empaquetado Ligera
       run: |
-        cd android-app
+        npm install -g @techiediaries/bnd
+        npm install -g @cli-packager/android || true
+
+    - name: Crear Estructura de la App
+      run: |
+        mkdir -p www
+        cp index.html www/ 2>/dev/null || true
+        cp -r * www/ 2>/dev/null || true
+
+    - name: Descargar Compilador Independiente
+      run: |
+        # Usamos un empaquetador nativo preconfigurado para evitar errores de SDK
+        git clone https://github.com/hayanisaid/Webview-APK-Container.git android-builder
+        cd android-builder
+        rm -rf app/src/main/assets/*
+        cp -r ../www/* app/src/main/assets/
         chmod +x ./gradlew
         ./gradlew assembleDebug
 
-    - name: Subir el APK Reparado
+    - name: Subir el APK Listo
       uses: actions/upload-artifact@v4
       with:
-        name: Real-Cleaner-Final-APK
-        path: android-app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+        name: Real-Cleaner-Gratis-APK
+        path: android-builder/app/build/outputs/apk/debug/app-debug.apk
